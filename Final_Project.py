@@ -1,16 +1,32 @@
-#!/usr/bin/env python3
+# !/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#@author: Thomas Swed
-#created: February 23, 2019
-#Artificial Intelligence 1 – CPSC 57100
-#Spring I - 2019
-#Machine Problem 3 - Course Planning using a Constraint Satisfaction Problem (mp3.py)
+# @author: Thomas Swed
+# created: February 23, 2019
+# Artificial Intelligence 1 – CPSC 57100
+# Spring I - 2019
+# Final Course Project
+# Constraint Satisfiability Algorithm for Interactive Student Scheduling
 
 import numpy as np
 import pandas as pd
 from constraint import *
 
+# Get student’s preferred time of day to attend courses
+preferred_times = input("Do you prefer morning, afternoon, or night courses?")
+
+# Get student's max number of courses in one term
+max_term_courses = int(input("What is the max number of courses you would like to take in one term? (4 max)"))
+
+# Get student's minimum professor rating
+min_professor_rating = int(input("What is the minimum professor rating you will accept? (5 = highest)"))
+
+# Get student's top three preferred days of the week and assign to array
+preferred_days = [] 
+max_preferred_days = 3
+while len(preferred_days) < max_preferred_days:
+    day = input("What are your top three preferred days of the week to attend courses.")
+    preferred_days.append(day)
 
 #Dictionary to lookup values and print corresponding term for each course
 terms_dic =	{
