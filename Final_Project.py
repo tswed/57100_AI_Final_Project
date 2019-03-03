@@ -12,86 +12,51 @@ import numpy as np
 import pandas as pd
 from constraint import *
 
-## Get student’s preferred time of day to attend courses
-#preferred_times = input("Do you prefer morning, afternoon, or night courses?")
-#
-## Get student's max number of courses in one term
-#max_term_courses = int(input("What is the max number of courses you would like to take in one term? (4 max)"))
-#
-## Get student's minimum professor rating
-#min_professor_rating = int(input("What is the minimum professor rating you will accept? (5 = highest)"))
-#
-## Get student's top three preferred days of the week and assign to array
-#preferred_days = [] 
-#max_preferred_days = 3
-#while len(preferred_days) < max_preferred_days:
-#    day = input("What are your top three preferred days of the week to attend courses.")
-#    preferred_days.append(day)
+# Load list of courses and variables from Excel
+course_rotations = pd.read_excel('course_rotations.xlsx', sheet_name='course_rotations')
 
-#Dictionary to lookup values and print corresponding term for each course
-terms_dic =	{
-     1: "Taken",
-     3: "Taken",
-     2: "Not Taken",
-     4: "Not Taken"
-}
+# Get student’s preferred time of day to attend courses
+preferred_time = input("Do you prefer morning, afternoon, or night courses?")
 
-#List of courses, and possible terms offered for each course
-#100-800 courses are electives, 3 of which must be taken
-courses = { "CPSC-50100 Morning": [1, 2],
-            "CPSC-50100 Evening": [3, 4],
+# Get student's max number of courses in one term
+max_term_courses = int(input("What is the max number of courses you would like to take in one term? (4 max)"))
 
-            "CPSC-50200 Morning": [1, 2],
-            "CPSC-50200 Evening": [3, 4],
-            
-            "CPSC-50300 Morning": [1, 2],
-            "CPSC-50300 Evening": [3, 4],
-    
-            "CPSC-50400 Morning": [1, 2],
-            "CPSC-50400 Evening": [3, 4] }
-            
+# Get student's minimum professor rating
+min_professor_rating = int(input("What is the minimum professor rating you will accept? (5 = highest)"))
 
-# Define pre-requisite function to ensure that course_before occurs before course_after
-# def prereq(course_before, course_after):
-#    return course_before < course_after
+# Get student's top three preferred days of the week and assign to array
+preferred_days = [] 
+max_preferred_days = 3
+while len(preferred_days) < max_preferred_days:
+    day = input("What are your top three preferred days of the week to attend courses.")
+    preferred_days.append(day)
 
+data = course_rotations.copy()
+
+# Subset courses minimum rating and higher
+data = data.loc[data['professor_rating'] >= min_professor_rating]
+
+# Subset courses preferred time of day
+data = data.loc[data['course_time'] == preferred_time]
+
+# Subset courses three preferred days
+data = data.loc[data['course_day'].isin(preferred_days)]
+
+# Assign filter list of courses to variable
+filtered_course_list = data.iloc[:,0]
+
+# Instantiate CSP object
 problem = Problem()
 
-# Add list of courses and possible terms as variables
-for key, value in courses.items():
-    problem.addVariable(key, value)
+# Add filtered list of courses as variables
+problem.addVariables(filtered_course_list, [0, 1])
 
-# Add constraint for not taking 5 of the 8 possible electives
-problem.addConstraint(InSetConstraint([1, 4]))
-
-#Add constraint for not taking 5 of the 8 possible electives
-#problem.addConstraint(SomeInSetConstraint([100,200,300,400,500,600,700,800], 5, True),
-#                      ["CPSC-50600","CPSC-51700","CPSC-52500","CPSC-55200","CPSC-55500","CPSC-57100","CPSC-57200","CPSC-57400"])
-
-# problem.addConstraint(SomeInSetConstraint([200]))
-
-# problem.addConstraint(NotInSetConstraint([200]))
-
-# Students may only take one course per term
-#problem.addConstraint(AllDifferentConstraint())
-
-# List of pre-requisite courses, first course must be taken before the second
-# problem.addConstraint(prereq, ["CPSC-50100", "CPSC-51100"])
-
-# Get solution
+# Get solutions
 csp_solutions = problem.getSolutions()
 
+# Get first solution in dict
 solution = pd.Series(csp_solutions[0])
 
-# Sort the solution
-sorted_solution = sorted(solution.items(), key=lambda kv: kv[1])
-
-# Print courses not taken
-#for key, value in sorted_solution:
-#    if (value >= 100):
-#        print(key + " " + terms_dic.get(value))
-
-# Print remaining courses
-for key, value in sorted_solution:
-    if (value < 100):
-        print(key + " " + terms_dic.get(value))
+print("Number of Possible Degree Plans is " + str(len(csp_solutions)))
+print()
+print(solution)
