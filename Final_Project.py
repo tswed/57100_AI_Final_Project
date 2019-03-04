@@ -1,8 +1,8 @@
 # !/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-# @author: Thomas Swed
-# created: February 23, 2019
+# @author: Thomas Swed, James Marquez, Hasan Rauf, Muhammad Sheikh
+# created: February 20, 2019
 # Artificial Intelligence 1 – CPSC 57100
 # Spring I - 2019
 # Final Course Project
@@ -12,8 +12,20 @@ import numpy as np
 import pandas as pd
 from constraint import *
 
+
+def create_term_list(terms, years=4):
+    '''Create a list of term indexes for years in the future'''
+    all_terms = []
+    for year in range(years):
+        for term in terms:
+            if year*6+term <= 14:
+                all_terms.append(year*6+term)
+    return all_terms
+
+
 # Load list of courses and variables from Excel
 course_rotations = pd.read_excel('course_rotations.xlsx', sheet_name='course_rotations')
+courses = course_rotations[course_rotations.type != 'elective']
 
 # Get student’s preferred time of day to attend courses
 preferred_time = input("Do you prefer morning, afternoon, or night courses?")
@@ -27,6 +39,7 @@ min_professor_rating = int(input("What is the minimum professor rating you will 
 # Get student's top three preferred days of the week and assign to array
 preferred_days = [] 
 max_preferred_days = 3
+
 while len(preferred_days) < max_preferred_days:
     day = input("What are your top three preferred days of the week to attend courses.")
     preferred_days.append(day)
