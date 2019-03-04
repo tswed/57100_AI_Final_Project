@@ -84,8 +84,8 @@ def add_courses_if_needed(courses_scheduled):
 
 
 def add_constraints():
-    # Students may only take one course per term
-    problem.addConstraint(AllDifferentConstraint())
+    # Need to figure out how to allow for multiple courses per term
+    #problem.addConstraint(AllDifferentConstraint())
 
     # List of pre-requisite courses, first course must be taken before the second
     problem.addConstraint(prereq, ["CPSC-50100", "CPSC-51100"])
