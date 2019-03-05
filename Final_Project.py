@@ -17,7 +17,6 @@ required_courses = ["CPSC-50100", "MATH-51000", "MATH-51100", "CPSC-59000",
 weekday_values = { "monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4, "friday": 5}
 
 
-
 class Course:
     def __init__(self, course_name, professor_rating, course_time, course_day, type, terms):
         self.course_name = course_name
@@ -137,9 +136,11 @@ def add_courses_if_needed(courses_scheduled, electives):
     return courses_scheduled
 
 
+# Load dataFrame data into an array of objects to allow for easier filtering
 def convert_to_object_array(data):
     course_array_list = []
 
+    # Loop over filtered dataFrame information to create an object for each row
     for course in data.iterrows():
         temp_course = Course(course[1].course_name, course[1].professor_rating, course[1].course_time,
                                  course[1].course_day, course[1].type, create_term_list(list(course[1][course[1] == 'Y'].index)))
