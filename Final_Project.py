@@ -12,9 +12,8 @@ import numpy as np
 import pandas as pd
 from constraint import *
 
-required_courses = ["CPSC-50100", "MATH-51000", "MATH-51100", "MATH-51200", "CPSC-51000", "CPSC-51100",
-                    "CPSC-53000", "CPSC-54000", "CPSC-55000", "CPSC-50600", "CPSC-51700", "CPSC-52500",
-                    "CPSC-55200", "CPSC-55500", "CPSC-57100", "CPSC-57200", "CPSC-57400", "CPSC-59000"]
+required_courses = ["CPSC-50100", "MATH-51000", "MATH-51100", "CPSC-59000",
+                    "CPSC-51100", "CPSC-53000", "CPSC-54000", "CPSC-55000"]
 weekdays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday']
 
 
@@ -23,7 +22,7 @@ def create_term_list(terms, years=4):
     all_terms = []
     for year in range(years):
         for term in terms:
-            if year*6+term <= 14:
+            if year*6+term <= 12:
                 all_terms.append(year*6+term)
     return all_terms
 
@@ -72,58 +71,61 @@ def get_user_input():
 def prereq(course_before, course_after):
     return course_before < course_after
 
-def add_courses_if_needed(courses_scheduled):
+def add_courses_if_needed(courses_scheduled, electives):
+    num_electives = 0
+
+    # Loop through required courses to ensure that all are taken
     for course in required_courses:
         current_courses = courses_scheduled['course_name'].tolist()
 
+        # Check if students needs courses outside their preferences and add if needed
         if course not in current_courses:
             course_to_add = course_rotations.loc[course_rotations['course_name'] == course].iloc[0]
             courses_scheduled = courses_scheduled.append(course_to_add)
+
+    # Get number of electives scheduled already
+    for course in courses_scheduled.iterrows():
+        if course[1].type == 'elective':
+            num_electives = num_electives + 1
+
+    # If student currently has less than 4 electives add up to 4 electives to courses_scheduled
+    for course in electives.iterrows():
+        if num_electives < 3:
+            current_courses = courses_scheduled['course_name'].tolist()
+            if course[1].course_name not in current_courses:
+                course_to_add = course_rotations.loc[course_rotations['course_name'] == course[1].course_name].iloc[0]
+                courses_scheduled = courses_scheduled.append(course_to_add)
+                num_electives = num_electives + 1
 
     return courses_scheduled
 
 
 def add_constraints():
     # Need to figure out how to allow for multiple courses per term
-    #problem.addConstraint(AllDifferentConstraint())
+    problem.addConstraint(AllDifferentConstraint())
 
     # List of pre-requisite courses, first course must be taken before the second
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-51100"])
     problem.addConstraint(prereq, ["CPSC-50100", "CPSC-55200"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-51000"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-53000"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-54000"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-55000"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-51700"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-55200"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-55500"])
-    problem.addConstraint(prereq, ["CPSC-50100", "CPSC-57100"])
-    problem.addConstraint(prereq, ["CPSC-57100", "CPSC-57200"])
-    problem.addConstraint(prereq, ["CPSC-57100", "CPSC-57400"])
-    problem.addConstraint(prereq, ["MATH-51100", "MATH-51200"])
     problem.addConstraint(prereq, ["MATH-51000", "CPSC-59000"])
     problem.addConstraint(prereq, ["MATH-51100", "CPSC-59000"])
-    problem.addConstraint(prereq, ["MATH-51200", "CPSC-59000"])
     problem.addConstraint(prereq, ["CPSC-50100", "CPSC-59000"])
-    problem.addConstraint(prereq, ["CPSC-51000", "CPSC-59000"])
-    problem.addConstraint(prereq, ["CPSC-51100", "CPSC-59000"])
-    problem.addConstraint(prereq, ["CPSC-53000", "CPSC-59000"])
-    problem.addConstraint(prereq, ["CPSC-54000", "CPSC-59000"])
-    problem.addConstraint(prereq, ["CPSC-55000", "CPSC-59000"])
 
-    # Add constraint for not taking 5 of the 8 possible electives
-    # problem.addConstraint(SomeInSetConstraint([100, 200, 300, 400, 500, 600, 700, 800], 5, True),
-    #                       ["CPSC-50600", "CPSC-51700", "CPSC-52500", "CPSC-55200", "CPSC-55500",
-    #                        "CPSC-57100", "CPSC-57200", "CPSC-57400"])
 
 # MAIN PROGRAM STARTS
 
+
 # Load list of courses and variables from Excel
 course_rotations = pd.read_excel('course_rotations.xlsx', sheet_name='course_rotations')
+courses = course_rotations[course_rotations.type != 'elective']
+elective_courses = course_rotations[course_rotations.type == 'elective']
 
-get_user_input()
+#get_user_input()
 
 data = course_rotations.copy()
+
+min_professor_rating = 1
+preferred_time = "morning"
+preferred_days = ["monday", "tuesday", "wednesday", "friday"]
 
 # Subset courses minimum rating and higher
 data = data.loc[data['professor_rating'] >= min_professor_rating]
@@ -134,7 +136,7 @@ data = data.loc[data['course_time'] == preferred_time]
 # Subset courses three preferred days
 data = data.loc[data['course_day'].isin(preferred_days)]
 
-final_schedule = add_courses_if_needed(data)
+final_schedule = add_courses_if_needed(data, elective_courses)
 
 # Instantiate CSP object
 problem = Problem()
@@ -143,7 +145,7 @@ for r, row in final_schedule.iterrows():
     test = list(row[row == 'Y'].index)
     problem.addVariable(row.course_name, create_term_list(list(row[row == 'Y'].index)))
 
-# add_constraints()
+add_constraints()
 
 # Get solutions
 csp_solutions = problem.getSolutions()
