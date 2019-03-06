@@ -85,6 +85,44 @@ def get_days(message):
     return actual_days
 
 
+# This performs user input validation to ensure the user is entering a number between 1 and 4
+def get_classes_per_semester(message):
+    while True:
+        try:
+            input_classes_per_semester = int(input(message))
+        except:
+            # Display error message if input cannot be cast to an int
+            print("Invalid number, please enter a digit between 1 and 4: ")
+            continue
+        else:
+            break
+
+    # Validate that the input number is between 1 and 4
+    if input_classes_per_semester < 1 or input_classes_per_semester > 4:
+        get_classes_per_semester("Please input a number between 1 and 4 (1-4): ")
+
+    return input_classes_per_semester
+
+
+# This performs user input validation to ensure the user is entering a number between 1 and 5
+def get_professor_rating(message):
+    while True:
+        try:
+            input_professor_rating = int(input(message))
+        except:
+            # Display error message if input cannot be cast to an int
+            print("Invalid number, please enter a digit between 1 and 5: ")
+            continue
+        else:
+            break
+
+    # Validate that the input number is between 1 and 5
+    if input_professor_rating < 1 or input_professor_rating > 5:
+        get_professor_rating("Please input a number between 1 and 5 (1-5): ")
+
+    return input_professor_rating
+
+
 # Function to display messages to the user to get preferences on time of day,
 # day of week, max number of courses per semester, and professor rating
 def get_user_input():
@@ -94,11 +132,11 @@ def get_user_input():
 
     # Get student's number of courses to take per semester
     global classes_per_semester
-    classes_per_semester = int(input("How many courses would you like to take in one semester? (3 max - 2 recommended)"))
+    classes_per_semester = get_classes_per_semester("How many courses would you like to take in one semester? (3 max - 2 recommended)")
 
     # Get student's minimum professor rating
     global min_professor_rating
-    min_professor_rating = int(input("What is the minimum professor rating you will accept? (5 = highest)"))
+    min_professor_rating = get_professor_rating("What is your preferred professor rating? (5 = highest)")
 
     # Get student's top three preferred days of the week and assign to array
     global preferred_days
@@ -265,6 +303,9 @@ def add_constraints():
         problem.addConstraint(SomeInSetConstraint([6], 1, True))
         problem.addConstraint(SomeInSetConstraint([7], 1, True))
 
+    # If student chooses to take only one course per semester
+    if classes_per_semester == 1:
+        problem.addConstraint(AllDifferentConstraint())
 
 # MAIN PROGRAM STARTS
 
@@ -273,14 +314,14 @@ course_rotations = pd.read_excel('course_rotations.xlsx', sheet_name='course_rot
 elective_courses = course_rotations.loc[course_rotations.type == 'elective']
 course_rotations = course_rotations.loc[course_rotations.type != 'elective']
 
-#get_user_input()
+get_user_input()
 
 data = course_rotations.copy()
 
-min_professor_rating = 5
-classes_per_semester = 3
-preferred_time = "morning"
-preferred_days = ["monday", "tuesday", "wednesday"]
+# min_professor_rating = 4
+# classes_per_semester = 3
+# preferred_time = "morning"
+# preferred_days = ["monday", "wednesday", "friday"]
 
 # Subset courses minimum rating and higher
 data = data.loc[data['professor_rating'] >= min_professor_rating]
