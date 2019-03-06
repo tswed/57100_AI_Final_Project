@@ -125,6 +125,20 @@ def get_best_course_to_add(potential_courses):
     return best_course
 
 
+# Determines the elective with the highest professor
+# rating of the potential electives passed in and returns it
+def get_best_elective(potential_electives):
+    best_rating = 1
+
+    # Check for elective with highest professor rating and set as best course
+    for c in potential_electives:
+        if c.professor_rating >= best_rating:
+            best_rating = c.professor_rating
+            best_course = c
+
+    return best_course
+
+
 # Students must take 4 electives, this
 def add_electives(courses_scheduled, electives, current_courses):
     num_electives = 1
@@ -143,12 +157,23 @@ def add_electives(courses_scheduled, electives, current_courses):
         current_courses.append(course.course_name)
 
     # Add electives if student has not met minimum required 4 electives
-    for course in electives.iterrows():
-        if course[1].course_name not in current_courses and num_electives <= 4:
-            courses_scheduled.append(Course(course[1].course_name, course[1].professor_rating,
-                                            course[1].course_time, course[1].course_day, course[1].type,
-                                            create_term_list(list(course[1][course[1] == 'Y'].index))))
-            num_electives = num_electives + 1
+    while num_electives <= 4:
+        possible_electives = []
+
+        # Create list of possible electives to add
+        for course in electives.iterrows():
+            if course[1].course_name not in current_courses:
+                possible_electives.append(Course(course[1].course_name, course[1].professor_rating,
+                                                 course[1].course_time, course[1].course_day, course[1].type,
+                                                 create_term_list(list(course[1][course[1] == 'Y'].index))))
+
+        # Get elective course with the highest professor rating to add to list
+        course_to_add = get_best_elective(possible_electives)
+        courses_scheduled.append(course_to_add)
+
+        # Add resulting elective course to current course list
+        current_courses.append(course_to_add.course_name)
+        num_electives = num_electives + 1
 
 
 # Check if there are extra courses outside those required and remove from schedule if found
@@ -156,12 +181,15 @@ def remove_courses_if_needed(courses_scheduled):
     final_courses = []
 
     for course in courses_scheduled:
+        # Only add course to new list of final courses if it is required or an elective
+        # Electives have already been set to be only 4
         if course.course_name in required_courses or course.type == 'elective':
             final_courses.append(course)
 
     return final_courses
 
 
+# Lookup course object using course name to display results
 def get_course_info(result_course):
     for course in final_schedule:
         if course.course_name == result_course:
@@ -176,6 +204,7 @@ def add_courses_if_needed(courses_scheduled, electives):
 
     # Loop through required courses to ensure that all are taken
     for course in required_courses:
+
         # Check if students needs courses outside their preferences and add if needed
         if course not in current_courses:
             courses_to_add = course_rotations.loc[course_rotations['course_name'] == course]
@@ -216,6 +245,8 @@ def add_constraints():
     problem.addConstraint(SomeInSetConstraint([1], 1, True), ["Course A"])
     problem.addConstraint(SomeInSetConstraint([2], 1, True), ["Course B"])
 
+    # If students take 3 courses per semester, they will finish early, so there are fewer constraints
+    # summers are only allowed one course
     if classes_per_semester == 3:
         problem.addConstraint(SomeInSetConstraint([1], classes_per_semester, True))
         problem.addConstraint(SomeInSetConstraint([2], classes_per_semester, True))
@@ -223,7 +254,7 @@ def add_constraints():
         problem.addConstraint(SomeInSetConstraint([4], classes_per_semester, True))
         problem.addConstraint(SomeInSetConstraint([5], 1, True))
 
-    # Students will take exactly the number of courses specified each semester,
+    # Students will take exactly the number of courses specified each semester, 2 in this case,
     # with the exception of summers, where they will take 1 course
     if classes_per_semester == 2:
         problem.addConstraint(SomeInSetConstraint([1], classes_per_semester, True))
@@ -232,6 +263,7 @@ def add_constraints():
         problem.addConstraint(SomeInSetConstraint([4], classes_per_semester, True))
         problem.addConstraint(SomeInSetConstraint([5], classes_per_semester, True))
         problem.addConstraint(SomeInSetConstraint([6], 1, True))
+        problem.addConstraint(SomeInSetConstraint([7], 1, True))
 
 
 # MAIN PROGRAM STARTS
@@ -245,10 +277,10 @@ course_rotations = course_rotations.loc[course_rotations.type != 'elective']
 
 data = course_rotations.copy()
 
-min_professor_rating = 3
+min_professor_rating = 5
 classes_per_semester = 3
 preferred_time = "morning"
-preferred_days = ["monday", "tuesday", "wednesday", "friday"]
+preferred_days = ["monday", "tuesday", "wednesday"]
 
 # Subset courses minimum rating and higher
 data = data.loc[data['professor_rating'] >= min_professor_rating]
@@ -275,14 +307,21 @@ add_constraints()
 # Get solutions
 csp_solutions = problem.getSolutions()
 
-# Get first solution in dict
-solution = pd.Series(csp_solutions[0])
-sorted_solution = sorted(solution.items(), key=lambda kv: kv[1])
+#If no solution is found, let the user know to expand their preferences
+if len(csp_solutions) == 0:
+    print("It looks like we couldn't find a schedule that matches your preferences, "
+          "please try again with fewer restrictions.")
+else:
+    # Get first solution in dict
+    solution = pd.Series(csp_solutions[0])
+    # Sort the solution
+    sorted_solution = sorted(solution.items(), key=lambda kv: kv[1])
 
-print("Number of Possible Degree Plans is " + str(len(csp_solutions)))
-print()
+    print("Number of Possible Degree Plans is " + str(len(csp_solutions)))
+    print()
 
-#Print remaining courses
-for key, value in sorted_solution:
-    print(key + " " + semesters.get(value) + " " +
-          get_course_info(key).course_day + " " + get_course_info(key).course_time)
+    #Print courses
+    for key, value in sorted_solution:
+        print(key + " " + semesters.get(value) + ", " + get_course_info(key).course_day
+              + " " + get_course_info(key).course_time + ", Professor Rating: "
+              + str(get_course_info(key).professor_rating))
