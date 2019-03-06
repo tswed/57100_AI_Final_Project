@@ -12,8 +12,25 @@ import numpy as np
 import pandas as pd
 from constraint import *
 
-required_courses = ["Course A", "Course B", "Course C", "Course D"]
-weekday_values = { "monday": 1, "tuesday": 2, "wednesday": 3, "thursday": 4, "friday": 5}
+required_courses = ["Course A", "Course B", "Course C", "Course D",
+                    "Course E", "Course F", "Course G"]
+weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday"]
+
+#Dictionary to lookup values and print corresponding semester for each course
+semesters =	{
+   1 : "Year 1 Fall",
+   2 : "Year 1 Spring",
+   3 : "Year 1 Summer",
+   4 : "Year 2 Fall",
+   5 : "Year 2 Spring",
+   6 : "Year 2 Summer",
+   7 : "Year 3 Fall",
+   8 : "Year 3 Spring",
+   9 : "Year 3 Summer",
+   10 : "Year 4 Fall",
+   11 : "Year 4 Spring",
+   12 : "Year 4 Summer"
+}
 
 
 class Course:
@@ -25,9 +42,11 @@ class Course:
         self.type = type
         self.terms = terms
 
-    def __lt__(self, other):  #less than
+    # Less than function
+    def __lt__(self, other):
         return self.professor_rating < other.professor_rating
 
+    # Hash function
     def __hash__(self):
         return self.course_name.__hash__()
 
@@ -42,6 +61,8 @@ def create_term_list(terms, years=4):
     return all_terms
 
 
+# Function to display a message to the user and get an array of three days the user
+# would like to take classes on.  Validation is also performed to verify spelling/correct days
 def get_days(message):
     input_days = input(message)
     actual_days = []
@@ -55,7 +76,7 @@ def get_days(message):
         day = day.lower()
 
         # Validate user input to ensure a weekday is selected
-        if day not in weekday_values.keys():
+        if day not in weekdays:
             get_days("Incorrect weekdays: " + day + " is not a valid day. Please enter 3 days of the week between monday and friday.")
             break
 
@@ -64,14 +85,16 @@ def get_days(message):
     return actual_days
 
 
+# Function to display messages to the user to get preferences on time of day,
+# day of week, max number of courses per semester, and professor rating
 def get_user_input():
     # Get student’s preferred time of day to attend courses
     global preferred_time
     preferred_time = input("Do you prefer morning, afternoon, or night courses?")
 
-    # Get student's max number of courses in one term
-    global max_term_courses
-    max_term_courses = int(input("What is the max number of courses you would like to take in one term? (4 max)"))
+    # Get student's number of courses to take per semester
+    global classes_per_semester
+    classes_per_semester = int(input("How many courses would you like to take in one semester? (3 max - 2 recommended)"))
 
     # Get student's minimum professor rating
     global min_professor_rating
@@ -82,16 +105,18 @@ def get_user_input():
     preferred_days = get_days("What are your top three preferred days of the week to attend courses (separate days with commas).")
 
 
-#Define pre-requisite function to ensure that course_before occurs before course_after
+# Define pre-requisite function to ensure that course_before occurs before course_after
 def prereq(course_before, course_after):
     return course_before < course_after
 
 
-def get_best_course_to_add(available_courses):
+# This determines which of the potential courses has the highest professor rating
+# and returns that course as a Course object
+def get_best_course_to_add(potential_courses):
     best_rating = 1
 
     # check for course with highest rated professor to add to students schedule
-    for c in available_courses.iterrows():
+    for c in potential_courses.iterrows():
         if c[1].professor_rating >= best_rating:
             best_rating = c[1].professor_rating
             best_course = Course(c[1].course_name, c[1].professor_rating, c[1].course_time,
@@ -100,6 +125,7 @@ def get_best_course_to_add(available_courses):
     return best_course
 
 
+# Students must take 4 electives, this
 def add_electives(courses_scheduled, electives, current_courses):
     num_electives = 1
 
@@ -127,11 +153,19 @@ def add_electives(courses_scheduled, electives, current_courses):
 
 # Check if there are extra courses outside those required and remove from schedule if found
 def remove_courses_if_needed(courses_scheduled):
-    for course in courses_scheduled:
-        if course.course_name not in required_courses and course.type != 'elective':
-            courses_scheduled.remove(course)
+    final_courses = []
 
-    return courses_scheduled
+    for course in courses_scheduled:
+        if course.course_name in required_courses or course.type == 'elective':
+            final_courses.append(course)
+
+    return final_courses
+
+
+def get_course_info(result_course):
+    for course in final_schedule:
+        if course.course_name == result_course:
+            return course
 
 
 def add_courses_if_needed(courses_scheduled, electives):
@@ -165,9 +199,12 @@ def convert_to_object_array(data):
 
     return course_array_list
 
+
 def add_constraints():
-    # Need to figure out how to allow for multiple courses per term
-    problem.addConstraint(AllDifferentConstraint())
+    final_courses = []
+
+    for course in final_schedule:
+        final_courses.append(course.course_name)
 
     # List of pre-requisite courses, first course must be taken before the second
     problem.addConstraint(prereq, ["Course A", "Course B"])
@@ -175,7 +212,26 @@ def add_constraints():
     problem.addConstraint(prereq, ["Course A", "Course D"])
     problem.addConstraint(prereq, ["Course B", "Course D"])
 
-    problem.addConstraint(SomeInSetConstraint([1, 2], 2, True))
+    # Course A must be taken in the first semester, Course B in the second
+    problem.addConstraint(SomeInSetConstraint([1], 1, True), ["Course A"])
+    problem.addConstraint(SomeInSetConstraint([2], 1, True), ["Course B"])
+
+    if classes_per_semester == 3:
+        problem.addConstraint(SomeInSetConstraint([1], classes_per_semester, True))
+        problem.addConstraint(SomeInSetConstraint([2], classes_per_semester, True))
+        problem.addConstraint(SomeInSetConstraint([3], 1, True))
+        problem.addConstraint(SomeInSetConstraint([4], classes_per_semester, True))
+        problem.addConstraint(SomeInSetConstraint([5], 1, True))
+
+    # Students will take exactly the number of courses specified each semester,
+    # with the exception of summers, where they will take 1 course
+    if classes_per_semester == 2:
+        problem.addConstraint(SomeInSetConstraint([1], classes_per_semester, True))
+        problem.addConstraint(SomeInSetConstraint([2], classes_per_semester, True))
+        problem.addConstraint(SomeInSetConstraint([3], 1, True))
+        problem.addConstraint(SomeInSetConstraint([4], classes_per_semester, True))
+        problem.addConstraint(SomeInSetConstraint([5], classes_per_semester, True))
+        problem.addConstraint(SomeInSetConstraint([6], 1, True))
 
 
 # MAIN PROGRAM STARTS
@@ -190,6 +246,7 @@ course_rotations = course_rotations.loc[course_rotations.type != 'elective']
 data = course_rotations.copy()
 
 min_professor_rating = 3
+classes_per_semester = 3
 preferred_time = "morning"
 preferred_days = ["monday", "tuesday", "wednesday", "friday"]
 
@@ -220,7 +277,12 @@ csp_solutions = problem.getSolutions()
 
 # Get first solution in dict
 solution = pd.Series(csp_solutions[0])
+sorted_solution = sorted(solution.items(), key=lambda kv: kv[1])
 
 print("Number of Possible Degree Plans is " + str(len(csp_solutions)))
 print()
-print(solution)
+
+#Print remaining courses
+for key, value in sorted_solution:
+    print(key + " " + semesters.get(value) + " " +
+          get_course_info(key).course_day + " " + get_course_info(key).course_time)
